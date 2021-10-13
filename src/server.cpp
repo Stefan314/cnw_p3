@@ -29,6 +29,8 @@
 
 #include <unistd.h>
 
+using namespace std;
+
 // fix SOCK_NONBLOCK for OSX
 #ifndef SOCK_NONBLOCK
 #include <fcntl.h>
@@ -44,7 +46,7 @@ class Client
 {
   public:
     int sock;              // socket of client connection
-    std::string name;           // Limit length of name of client's user
+    string name;           // Limit length of name of client's user
 
     Client(int socket) : sock(socket){} 
 
@@ -58,7 +60,7 @@ class Client
 // Quite often a simple array can be used as a lookup table, 
 // (indexed on socket no.) sacrificing memory for speed.
 
-std::map<int, Client*> clients; // Lookup table for per Client information
+map<int, Client*> clients; // Lookup table for per Client information
 
 // Open socket for specified port.
 //
@@ -137,7 +139,7 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
      {
         for(auto const& p : clients)
         {
-            *maxfds = std::max(*maxfds, p.second->sock);
+            *maxfds = max(*maxfds, p.second->sock);
         }
      }
 
@@ -152,11 +154,11 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds, 
                   char *buffer) 
 {
-  std::vector<std::string> tokens;
-  std::string token;
+  vector<string> tokens;
+  string token;
 
   // Split command from client into tokens for parsing
-  std::stringstream stream(buffer);
+  stringstream stream(buffer);
 
   while(stream >> token)
       tokens.push_back(token);
@@ -175,8 +177,8 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   }
   else if(tokens[0].compare("WHO") == 0)
   {
-     std::cout << "Who is logged on" << std::endl;
-     std::string msg;
+     cout << "Who is logged on" << endl;
+     string msg;
 
      for(auto const& names : clients)
      {
@@ -192,7 +194,7 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   // of evaluation of the if statement.
   else if((tokens[0].compare("MSG") == 0) && (tokens[1].compare("ALL") == 0))
   {
-      std::string msg;
+      string msg;
       for(auto i = tokens.begin()+2;i != tokens.end();i++) 
       {
           msg += *i + " ";
@@ -209,7 +211,7 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       {
           if(pair.second->name.compare(tokens[1]) == 0)
           {
-              std::string msg;
+              string msg;
               for(auto i = tokens.begin()+2;i != tokens.end();i++) 
               {
                   msg += *i + " ";
@@ -220,7 +222,7 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   }
   else
   {
-      std::cout << "Unknown command from client:" << buffer << std::endl;
+      cout << "Unknown command from client:" << buffer << endl;
   }
      
 }
@@ -290,7 +292,7 @@ int main(int argc, char* argv[])
                FD_SET(clientSock, &openSockets);
 
                // And update the maximum file descriptor
-               maxfds = std::max(maxfds, clientSock) ;
+               maxfds = max(maxfds, clientSock) ;
 
                // create a new client to store information.
                clients[clientSock] = new Client(clientSock);
@@ -301,7 +303,7 @@ int main(int argc, char* argv[])
                printf("Client connected on server: %d\n", clientSock);
             }
             // Now check for commands from clients
-            std::list<Client *> disconnectedClients;  
+            list<Client *> disconnectedClients;  
             while(n-- > 0)
             {
                for(auto const& pair : clients)
@@ -321,7 +323,7 @@ int main(int argc, char* argv[])
                       // only triggers if there is something on the socket for us.
                       else
                       {
-                          std::cout << buffer << std::endl;
+                          cout << buffer << endl;
                           clientCommand(client->sock, &openSockets, &maxfds, buffer);
                       }
                   }

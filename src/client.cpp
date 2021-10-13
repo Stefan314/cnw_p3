@@ -20,11 +20,9 @@
 #include <algorithm>
 #include <map>
 #include <vector>
-#include <thread>
 
 #include <iostream>
 #include <sstream>
-#include <thread>
 #include <map>
 
 // Threaded function for handling responss from server
@@ -117,8 +115,6 @@ int main(int argc, char* argv[])
    }
 
     // Listen and print replies from server
-   std::thread serverThread(listenServer, serverSocket);
-
    finished = false;
    while(!finished)
    {
