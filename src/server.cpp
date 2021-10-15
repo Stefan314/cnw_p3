@@ -5,18 +5,13 @@
 //
 // Author: Jacky Mallett (jacky@ru.is)
 //
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <string.h>
+#include <cstring>
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -24,10 +19,6 @@
 
 #include <iostream>
 #include <sstream>
-#include <thread>
-#include <map>
-
-#include <unistd.h>
 
 using namespace std;
 
@@ -48,9 +39,9 @@ class Client
     int sock;              // socket of client connection
     string name;           // Limit length of name of client's user
 
-    Client(int socket) : sock(socket){} 
+    explicit Client(int socket) : sock(socket){}
 
-    ~Client(){}            // Virtual destructor defined for base class
+    ~Client()= default;            // Virtual destructor defined for base class
 };
 
 // Note: map is not necessarily the most efficient method to use here,
@@ -68,7 +59,7 @@ map<int, Client*> clients; // Lookup table for per Client information
 
 int open_socket(int portno)
 {
-   struct sockaddr_in sk_addr;   // address settings for bind()
+   struct sockaddr_in sk_addr{};   // address settings for bind()
    int sock;                     // socket opened for this port
    int set = 1;                  // for setsockopt
 
@@ -163,11 +154,11 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   while(stream >> token)
       tokens.push_back(token);
 
-  if((tokens[0].compare("CONNECT") == 0) && (tokens.size() == 2))
+  if((tokens[0] == "CONNECT") && (tokens.size() == 2))
   {
      clients[clientSocket]->name = tokens[1];
   }
-  else if(tokens[0].compare("LEAVE") == 0)
+  else if(tokens[0] == "LEAVE")
   {
       // Close the socket, and leave the socket handling
       // code to deal with tidying up clients etc. when
@@ -175,7 +166,7 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
  
       closeClient(clientSocket, openSockets, maxfds);
   }
-  else if(tokens[0].compare("WHO") == 0)
+  else if(tokens[0] == "WHO")
   {
      cout << "Who is logged on" << endl;
      string msg;
@@ -192,7 +183,7 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   }
   // This is slightly fragile, since it's relying on the order
   // of evaluation of the if statement.
-  else if((tokens[0].compare("MSG") == 0) && (tokens[1].compare("ALL") == 0))
+  else if((tokens[0] == "MSG") && (tokens[1] == "ALL"))
   {
       string msg;
       for(auto i = tokens.begin()+2;i != tokens.end();i++) 
@@ -205,11 +196,11 @@ void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
           send(pair.second->sock, msg.c_str(), msg.length(),0);
       }
   }
-  else if(tokens[0].compare("MSG") == 0)
+  else if(tokens[0] == "MSG")
   {
       for(auto const& pair : clients)
       {
-          if(pair.second->name.compare(tokens[1]) == 0)
+          if(pair.second->name == tokens[1])
           {
               string msg;
               for(auto i = tokens.begin()+2;i != tokens.end();i++) 
@@ -236,9 +227,10 @@ int main(int argc, char* argv[])
     fd_set readSockets;             // Socket list for select()        
     fd_set exceptSockets;           // Exception socket list
     int maxfds;                     // Passed to select() as max fd in set
-    struct sockaddr_in client;
+    struct sockaddr_in client{};
     socklen_t clientLen;
     char buffer[1025];              // buffer for reading from clients
+    int instructorPorts[3] = {4001, 4002, 4003};
 
     if(argc != 2)
     {
@@ -261,6 +253,7 @@ int main(int argc, char* argv[])
     {
         FD_ZERO(&openSockets);
         FD_SET(listenSock, &openSockets);
+        clients.insert({listenSock, new Client(listenSock)});
         maxfds = listenSock;
     }
 
@@ -273,7 +266,7 @@ int main(int argc, char* argv[])
         memset(buffer, 0, sizeof(buffer));
 
         // Look at sockets and see which ones have something to be read()
-        int n = select(maxfds + 1, &readSockets, NULL, &exceptSockets, NULL);
+        int n = select(maxfds + 1, &readSockets, nullptr, &exceptSockets, nullptr);
 
         if(n < 0)
         {
