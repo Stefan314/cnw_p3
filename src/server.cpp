@@ -145,76 +145,97 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 void clientCommand(int clientSocket, fd_set *openSockets, int *maxfds, 
                   char *buffer) 
 {
-  vector<string> tokens;
-  string token;
+    vector<string> tokens;
+    string token;
 
-  // Split command from client into tokens for parsing
-  stringstream stream(buffer);
+    // Split command from client into tokens for parsing
+    stringstream stream(buffer);
 
-  while(stream >> token)
+    while(stream >> token)
       tokens.push_back(token);
 
-  if((tokens[0] == "CONNECT") && (tokens.size() == 2))
-  {
-     clients[clientSocket]->name = tokens[1];
-  }
-  else if(tokens[0] == "LEAVE")
-  {
-      // Close the socket, and leave the socket handling
-      // code to deal with tidying up clients etc. when
-      // select() detects the OS has torn down the connection.
- 
-      closeClient(clientSocket, openSockets, maxfds);
-  }
-  else if(tokens[0] == "WHO")
-  {
-     cout << "Who is logged on" << endl;
-     string msg;
+    if((tokens[0] == "CONNECT") && (tokens.size() == 2))
+    {
+        clients[clientSocket]->name = tokens[1];
+    }
+    else if(tokens[0] == "LEAVE")
+    {
+        // Close the socket, and leave the socket handling
+        // code to deal with tidying up clients etc. when
+        // select() detects the OS has torn down the connection.
 
-     for(auto const& names : clients)
-     {
+        closeClient(clientSocket, openSockets, maxfds);
+    }
+    else if(tokens[0] == "WHO" || tokens[0] == "QUERYSERVERS")
+    {
+        cout << "Who is logged on" << endl;
+        string msg;
+        for(auto const& names : clients)
+        {
         msg += names.second->name + ",";
-
-     }
-     // Reducing the msg length by 1 loses the excess "," - which
-     // granted is totally cheating.
-     send(clientSocket, msg.c_str(), msg.length()-1, 0);
-
-  }
-  // This is slightly fragile, since it's relying on the order
-  // of evaluation of the if statement.
-  else if((tokens[0] == "MSG") && (tokens[1] == "ALL"))
-  {
-      string msg;
-      for(auto i = tokens.begin()+2;i != tokens.end();i++) 
-      {
+        }
+        // Reducing the msg length by 1 loses the excess "," - which
+        // granted is totally cheating.
+        send(clientSocket, msg.c_str(), msg.length()-1, 0);
+    }
+    // This is slightly fragile, since it's relying on the order
+    // of evaluation of the if statement.
+    else if((tokens[0] == "MSG") && (tokens[1] == "ALL"))
+    {
+        string msg;
+        for(auto i = tokens.begin()+2;i != tokens.end();i++)
+        {
           msg += *i + " ";
-      }
+        }
 
-      for(auto const& pair : clients)
-      {
+        for(auto const& pair : clients)
+        {
           send(pair.second->sock, msg.c_str(), msg.length(),0);
-      }
-  }
-  else if(tokens[0] == "MSG")
-  {
-      for(auto const& pair : clients)
-      {
-          if(pair.second->name == tokens[1])
-          {
-              string msg;
-              for(auto i = tokens.begin()+2;i != tokens.end();i++) 
-              {
-                  msg += *i + " ";
-              }
-              send(pair.second->sock, msg.c_str(), msg.length(),0);
-          }
-      }
-  }
-  else
-  {
-      cout << "Unknown command from client:" << buffer << endl;
-  }
+        }
+    }
+    else if(tokens[0] == "MSG")
+    {
+        for(auto const& pair : clients)
+        {
+            if(pair.second->name == tokens[1])
+            {
+                string msg;
+                for(auto i = tokens.begin()+2;i != tokens.end();i++)
+                {
+                    msg += *i + " ";
+                }
+                send(pair.second->sock, msg.c_str(), msg.length(),0);
+            }
+        }
+    }
+    else if(tokens[0] == "KEEPALIVE" && tokens.size() == 2)
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else if(tokens[0] == "FETCH_MSG" && tokens.size() ==  2)
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else if(tokens[0] == "FETCH_MSGS" && tokens.size() ==  2)
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else if(tokens[0] == "SEND_MSG" && (tokens.size() == 3 || tokens.size() == 4))
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else if(tokens[0] == "STATUSREQ" && tokens.size() == 2)
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else if(tokens[0] == "STATUSRESP" && tokens.size() > 5 && (tokens.size() % 2 == 1))
+    {
+        cout << "Command not implemented yet" << endl;
+    }
+    else
+    {
+        cout << "Unknown command from client:" << buffer << endl;
+    }
      
 }
 
@@ -288,7 +309,14 @@ int main(int argc, char* argv[])
                maxfds = max(maxfds, clientSock) ;
 
                // create a new client to store information.
-               clients[clientSock] = new Client(clientSock);
+               if (clients.find(clientSock) == clients.end())
+               {
+                   clients.insert({clientSock, new Client(clientSock)});
+               }
+               else
+               {
+                   clients[clientSock] = new Client(clientSock);
+               }
 
                // Decrement the number of sockets waiting to be dealt with
                n--;
@@ -310,7 +338,6 @@ int main(int argc, char* argv[])
                       {
                           disconnectedClients.push_back(client);
                           closeClient(client->sock, &openSockets, &maxfds);
-
                       }
                       // We don't check for -1 (nothing received) because select()
                       // only triggers if there is something on the socket for us.
